@@ -1,0 +1,207 @@
+{
+  "chat_id": "oc_ffa82395e78cff1fb14799bbbd7302c2",
+  "date": "2026-03-04",
+  "duration": "1d",
+  "doc_url": null,
+  "message_count": 18,
+  "messages": [
+    {
+      "message_id": "om_x100b55454521eca0c3aa05ab0af1e55",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 fetch 3h"
+      },
+      "create_time": "1772556478897",
+      "time": "2026-03-04 00:47:58"
+    },
+    {
+      "message_id": "om_x100b554543a444a4c2dc6b93c555709",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 3h"
+      },
+      "create_time": "1772556502712",
+      "time": "2026-03-04 00:48:22"
+    },
+    {
+      "message_id": "om_x100b55454334eca0c2eb15f87aebff5",
+      "sender_id": "cli_a92c46da77f8dcc1",
+      "sender_type": "app",
+      "msg_type": "text",
+      "content": {
+        "text": "Fetching messages from the last 3.0 hours..."
+      },
+      "create_time": "1772556511693",
+      "time": "2026-03-04 00:48:31"
+    },
+    {
+      "message_id": "om_x100b5545408550a0c3f600599206d89",
+      "sender_id": "cli_a92c46da77f8dcc1",
+      "sender_type": "app",
+      "msg_type": "text",
+      "content": {
+        "text": "Fetched 13 messages from the last 3.0 hours.\n- Text messages: 10\n- Other types: 3\n- Time range: 2026-03-03 23:24:20 ~ 2026-03-04 00:48:31"
+      },
+      "create_time": "1772556516664",
+      "time": "2026-03-04 00:48:36"
+    },
+    {
+      "message_id": "om_x100b554554fe10a0c4c2f8992690c9f",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 3h"
+      },
+      "create_time": "1772556707325",
+      "time": "2026-03-04 00:51:47"
+    },
+    {
+      "message_id": "om_x100b55455054f4a0c2aeee6cc700c8e",
+      "sender_id": "cli_a92c46da77f8dcc1",
+      "sender_type": "app",
+      "msg_type": "text",
+      "content": {
+        "text": "Fetching messages from the last 3.0 hours..."
+      },
+      "create_time": "1772556777704",
+      "time": "2026-03-04 00:52:57"
+    },
+    {
+      "message_id": "om_x100b55455029c4a4c45f9eb60205eac",
+      "sender_id": "cli_a92c46da77f8dcc1",
+      "sender_type": "app",
+      "msg_type": "text",
+      "content": {
+        "text": "Fetched 16 messages from the last 3.0 hours.\n- Text messages: 13\n- Other types: 3\n- Time range: 2026-03-03 23:24:20 ~ 2026-03-04 00:52:57"
+      },
+      "create_time": "1772556782371",
+      "time": "2026-03-04 00:53:02"
+    },
+    {
+      "message_id": "om_x100b5545685b6cb0c3eb3e90175ece2",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 3h"
+      },
+      "create_time": "1772556905525",
+      "time": "2026-03-04 00:55:05"
+    },
+    {
+      "message_id": "om_x100b554568132ca4c14dc67b7b28aa0",
+      "sender_id": "cli_a92c46da77f8dcc1",
+      "sender_type": "app",
+      "msg_type": "text",
+      "content": {
+        "text": "Fetching messages from the last 3.0 hours..."
+      },
+      "create_time": "1772556910028",
+      "time": "2026-03-04 00:55:10"
+    },
+    {
+      "message_id": "om_x100b554569d17c70c4d131bcb1591d2",
+      "sender_id": "cli_a92c46da77f8dcc1",
+      "sender_type": "app",
+      "msg_type": "text",
+      "content": {
+        "text": "Fetched 18 messages from the last 3.0 hours.\n- Text messages: 15\n- Other types: 3\n- Time range: 2026-03-03 23:24:20 ~ 2026-03-04 00:55:05"
+      },
+      "create_time": "1772556913925",
+      "time": "2026-03-04 00:55:13"
+    },
+    {
+      "message_id": "om_x100b554566e828a0c34f8188b8f1f62",
+      "sender_id": "cli_a92c46da77f8dcc1",
+      "sender_type": "app",
+      "msg_type": "text",
+      "content": {
+        "text": "Fetching messages from the last 3.0 hours..."
+      },
+      "create_time": "1772556930451",
+      "time": "2026-03-04 00:55:30"
+    },
+    {
+      "message_id": "om_x100b5545607eaca4c45ca25058eb0b0",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 3h"
+      },
+      "create_time": "1772557035292",
+      "time": "2026-03-04 00:57:15"
+    },
+    {
+      "message_id": "om_x100b55456072dca4c2b9bcef532d0b0",
+      "sender_id": "cli_a92c46da77f8dcc1",
+      "sender_type": "app",
+      "msg_type": "text",
+      "content": {
+        "text": "Fetching messages from the last 3.0 hours..."
+      },
+      "create_time": "1772557036074",
+      "time": "2026-03-04 00:57:16"
+    },
+    {
+      "message_id": "om_x100b5545600454a0c1249ad9d4287a6",
+      "sender_id": "cli_a92c46da77f8dcc1",
+      "sender_type": "app",
+      "msg_type": "text",
+      "content": {
+        "text": "Fetched 22 messages from the last 3.0 hours.\n- Text messages: 19\n- Other types: 3\n- Time range: 2026-03-03 23:24:20 ~ 2026-03-04 00:57:15"
+      },
+      "create_time": "1772557036716",
+      "time": "2026-03-04 00:57:16"
+    },
+    {
+      "message_id": "om_x100b55457bb518a8c2e2d22d4c5a004",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 3h"
+      },
+      "create_time": "1772557143643",
+      "time": "2026-03-04 00:59:03"
+    },
+    {
+      "message_id": "om_x100b55b0a044d8a4c49deddda177ac2",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "4.64 复制打开抖音，看看【高盖伦的作品】99%%的人都小瞧了伊朗！为什么美国没办法轻易拿下... https://v.douyin.com/3irTkluHjyc/ Y@Z.mQ pdA:/ 11/08"
+      },
+      "create_time": "1772637928784",
+      "time": "2026-03-04 23:25:28"
+    },
+    {
+      "message_id": "om_x100b55b0a1502ca0c366322f5300fc0",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/PZaw6jpOZIXTde6kmpTeeA"
+      },
+      "create_time": "1772637946009",
+      "time": "2026-03-04 23:25:46"
+    },
+    {
+      "message_id": "om_x100b55b0bd7a58a0c4c1220dc55d44a",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://api3.cls.cn/share/article/2302350?os=ios&sv=8.7.3&app=cailianpress"
+      },
+      "create_time": "1772638011611",
+      "time": "2026-03-04 23:26:51"
+    }
+  ]
+}

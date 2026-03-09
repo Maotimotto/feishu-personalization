@@ -1,0 +1,580 @@
+{
+  "chat_id": "oc_ffa82395e78cff1fb14799bbbd7302c2",
+  "date": "2026-03-07",
+  "duration": "1d",
+  "doc_url": "https://jcnx28d66w2x.feishu.cn/docx/I8fsdgtMOo3eikxBmK1ceelonWg",
+  "message_count": 50,
+  "messages": [
+    {
+      "message_id": "om_x100b5590b31b74bcb200d161310f674",
+      "sender_id": "ou_60bb9c46354375d61d01edfacbbf9457",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 48h"
+      },
+      "create_time": "1772769245631",
+      "time": "2026-03-06 11:54:05"
+    },
+    {
+      "message_id": "om_x100b55914f4a68bcb3d08a720c46049",
+      "sender_id": "ou_60bb9c46354375d61d01edfacbbf9457",
+      "sender_type": "user",
+      "msg_type": "image",
+      "content": {
+        "image_key": "img_v3_02vh_b4f17bc3-cad5-4dac-a58b-92dd3d9b58eg"
+      },
+      "create_time": "1772769304700",
+      "time": "2026-03-06 11:55:04"
+    },
+    {
+      "message_id": "om_x100b55910812fca0b3817ab755ee3a3",
+      "sender_id": "ou_60bb9c46354375d61d01edfacbbf9457",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 48h"
+      },
+      "create_time": "1772770414117",
+      "time": "2026-03-06 12:13:34"
+    },
+    {
+      "message_id": "om_x100b5591139510acb3f0f65b3d7d725",
+      "sender_id": "ou_60bb9c46354375d61d01edfacbbf9457",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 48h"
+      },
+      "create_time": "1772770773669",
+      "time": "2026-03-06 12:19:33"
+    },
+    {
+      "message_id": "om_x100b5591295c78a8b4a26d9de9dd826",
+      "sender_id": "ou_60bb9c46354375d61d01edfacbbf9457",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 48h"
+      },
+      "create_time": "1772770937259",
+      "time": "2026-03-06 12:22:17"
+    },
+    {
+      "message_id": "om_x100b5591d14eb8b4b21636a8f4b5a91",
+      "sender_id": "ou_60bb9c46354375d61d01edfacbbf9457",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 48h"
+      },
+      "create_time": "1772771832328",
+      "time": "2026-03-06 12:37:12"
+    },
+    {
+      "message_id": "om_x100b5592dbeba4b4b34f92c1e7aa02a",
+      "sender_id": "ou_60bb9c46354375d61d01edfacbbf9457",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 48h"
+      },
+      "create_time": "1772775762547",
+      "time": "2026-03-06 13:42:42"
+    },
+    {
+      "message_id": "om_x100b5593575de8b0b3f7bd03d8ecc91",
+      "sender_id": "ou_60bb9c46354375d61d01edfacbbf9457",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 48h"
+      },
+      "create_time": "1772777881178",
+      "time": "2026-03-06 14:18:01"
+    },
+    {
+      "message_id": "om_x100b559c6051e0bcb378e7d3273cca8",
+      "sender_id": "ou_60bb9c46354375d61d01edfacbbf9457",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 48h"
+      },
+      "create_time": "1772782313980",
+      "time": "2026-03-06 15:31:53"
+    },
+    {
+      "message_id": "om_x100b559c83c31530b3720f09b3f2df5",
+      "sender_id": "ou_60bb9c46354375d61d01edfacbbf9457",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 48h"
+      },
+      "create_time": "1772784849073",
+      "time": "2026-03-06 16:14:09"
+    },
+    {
+      "message_id": "om_x100b559d6fd96160b21ea4fc423b0a8",
+      "sender_id": "ou_60bb9c46354375d61d01edfacbbf9457",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 48h"
+      },
+      "create_time": "1772786193465",
+      "time": "2026-03-06 16:36:33"
+    },
+    {
+      "message_id": "om_x100b559d3d7f84acb2d21b9f3809e43",
+      "sender_id": "",
+      "sender_type": "",
+      "msg_type": "system",
+      "content": {
+        "template": "{from_user} invited members of this group to a new external group {new_chat}.",
+        "from_user": [
+          "7533535940074749956"
+        ],
+        "to_chatters": [],
+        "divider_text": {}
+      },
+      "create_time": "1772787515140",
+      "time": "2026-03-06 16:58:35"
+    },
+    {
+      "message_id": "om_x100b559db6d40cb4b3b2977d06f7cec",
+      "sender_id": "ou_60bb9c46354375d61d01edfacbbf9457",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://open.feishu.cn/app/cli_a92c46da77f8dcc1/auth"
+      },
+      "create_time": "1772789633799",
+      "time": "2026-03-06 17:33:53"
+    },
+    {
+      "message_id": "om_x100b559e4e3470b8b38c15a96eb46d5",
+      "sender_id": "ou_60bb9c46354375d61d01edfacbbf9457",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 48h"
+      },
+      "create_time": "1772789775757",
+      "time": "2026-03-06 17:36:15"
+    },
+    {
+      "message_id": "om_x100b559e5cdf24b0b2773c3a2654efe",
+      "sender_id": "",
+      "sender_type": "",
+      "msg_type": "system",
+      "content": {
+        "template": "{from_user} invited {to_chatters} to the group. New members can view all chat history.",
+        "from_user": [
+          "李凯文"
+        ],
+        "to_chatters": [
+          "倪舒婷",
+          "童欣",
+          "王晶晶"
+        ],
+        "divider_text": {}
+      },
+      "create_time": "1772790049178",
+      "time": "2026-03-06 17:40:49"
+    },
+    {
+      "message_id": "om_x100b559e553a7090b21429819c468b3",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/LKSLeHNtxtJR9cGkS6TeXw"
+      },
+      "create_time": "1772790207691",
+      "time": "2026-03-06 17:43:27"
+    },
+    {
+      "message_id": "om_x100b559e5057d498b39935e8ce3fee6",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "1.05 复制打开抖音，看看【N小黑财经的作品】中国，在干什么？这是十五五规划背后，隐秘的战略定力... https://v.douyin.com/WVjSD9PcTtI/ HiP:/ J@V.yg 02/26"
+      },
+      "create_time": "1772790249803",
+      "time": "2026-03-06 17:44:09"
+    },
+    {
+      "message_id": "om_x100b559e6cc6d8a0b37dda84b38b734",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 1h"
+      },
+      "create_time": "1772790304860",
+      "time": "2026-03-06 17:45:04"
+    },
+    {
+      "message_id": "om_x100b559e6dd544b4b390335e0be95ab",
+      "sender_id": "",
+      "sender_type": "",
+      "msg_type": "system",
+      "content": {
+        "template": "{from_user} invited {to_chatters} to the group. New members can view all chat history.",
+        "from_user": [
+          "李凯文"
+        ],
+        "to_chatters": [
+          "吴康成"
+        ],
+        "divider_text": {}
+      },
+      "create_time": "1772790321572",
+      "time": "2026-03-06 17:45:21"
+    },
+    {
+      "message_id": "om_x100b559e654d38bcb374c9ac9c5eba5",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/JPhos5crl4u5aASnSVyweg"
+      },
+      "create_time": "1772790456227",
+      "time": "2026-03-06 17:47:36"
+    },
+    {
+      "message_id": "om_x100b559e615ac4b0b206be220f90ca2",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "借钱也要投！软银拟融资创纪录的400亿美元投向OpenAI https://wallstreetcn.com/articles/3766877#from=ios"
+      },
+      "create_time": "1772790521669",
+      "time": "2026-03-06 17:48:41"
+    },
+    {
+      "message_id": "om_x100b559e7cd4aca4b393afb32508f94",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://go.jin10.com/ndm8t1"
+      },
+      "create_time": "1772790561745",
+      "time": "2026-03-06 17:49:21"
+    },
+    {
+      "message_id": "om_x100b559e7c2080b8b2c857ce1f7be29",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 1h"
+      },
+      "create_time": "1772790574956",
+      "time": "2026-03-06 17:49:34"
+    },
+    {
+      "message_id": "om_x100b559ed255ad08b31da9dda1f4e60",
+      "sender_id": "ou_7982f60f5cd534a86eb1215bedd708df",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/s2LTkrPN66BZJWBs72ekhg"
+      },
+      "create_time": "1772792265708",
+      "time": "2026-03-06 18:17:45"
+    },
+    {
+      "message_id": "om_x100b559ed35a0c84b3f6fb6fc5fe743",
+      "sender_id": "ou_7982f60f5cd534a86eb1215bedd708df",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "test！"
+      },
+      "create_time": "1772792281588",
+      "time": "2026-03-06 18:18:01"
+    },
+    {
+      "message_id": "om_x100b559fb920a070b356974bead83ee",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/WbVhoePac4mDl9o8nw6rkA"
+      },
+      "create_time": "1772797823016",
+      "time": "2026-03-06 19:50:23"
+    },
+    {
+      "message_id": "om_x100b55986908d0a8b20943d769b9db2",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/Io8SOOhk0YVv5JK7yLLjxA"
+      },
+      "create_time": "1772798588509",
+      "time": "2026-03-06 20:03:08"
+    },
+    {
+      "message_id": "om_x100b5598c9c00ca0b33269f5d3e972d",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "明天要解读非农了"
+      },
+      "create_time": "1772800112974",
+      "time": "2026-03-06 20:28:32"
+    },
+    {
+      "message_id": "om_x100b5598e93284a8b3c2fe47c9cc3ca",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "9.94 复制打开抖音，看看【唐子棋的作品】一口气带你从历史/理性/哲学：三个维度看美伊之战如... https://v.douyin.com/Gg0knTj_TMk/ b@a.Nj WZm:/ 11/25"
+      },
+      "create_time": "1772800640100",
+      "time": "2026-03-06 20:37:20"
+    },
+    {
+      "message_id": "om_x100b5599ad928ca4c2d6b22bfcf4072",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/wnoHDJKcjXYEizDSa-N4RQ"
+      },
+      "create_time": "1772805686091",
+      "time": "2026-03-06 22:01:26"
+    },
+    {
+      "message_id": "om_x100b5599a0d858b0c424b2b97ddec9f",
+      "sender_id": "ou_7982f60f5cd534a86eb1215bedd708df",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/wnoHDJKcjXYEizDSa-N4RQ"
+      },
+      "create_time": "1772805857531",
+      "time": "2026-03-06 22:04:17"
+    },
+    {
+      "message_id": "om_x100b559b567b40a8c2ee5f44ed9cdde",
+      "sender_id": "ou_7982f60f5cd534a86eb1215bedd708df",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "美国非农就业转负，降息预期增加，美股下跌 http://xhslink.com/o/4GWVeTVm4qR \n复制后打开【小红书】查看笔记！"
+      },
+      "create_time": "1772810635620",
+      "time": "2026-03-06 23:23:55"
+    },
+    {
+      "message_id": "om_x100b558c57efd4acb2ea2eedd2fbbaa",
+      "sender_id": "ou_44b68fca402174c284137f8dcdfeccb4",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "5.35 复制打开抖音，看看【李春华的作品】2026年第一批储蓄国债即将发行，不了解的可以听一... https://v.douyin.com/TjYcoulc7Ig/ ZmD:/ 11/03 Q@K.JV "
+      },
+      "create_time": "1772847506303",
+      "time": "2026-03-07 09:38:26"
+    },
+    {
+      "message_id": "om_x100b558c6effd0a0b3cbc7f216ef5a8",
+      "sender_id": "ou_44b68fca402174c284137f8dcdfeccb4",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "3.51 复制打开抖音，看看【何毅财经课堂的作品】中国央企将发生重大战略重组 未来要尽可能把中央企业... https://v.douyin.com/2021v3kSf6I/ aaN:/ Q@x.Fh 09/22 "
+      },
+      "create_time": "1772847619306",
+      "time": "2026-03-07 09:40:19"
+    },
+    {
+      "message_id": "om_x100b558c6f7688a4b316f5e6a321027",
+      "sender_id": "ou_44b68fca402174c284137f8dcdfeccb4",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "2.84 复制打开抖音，看看【一鸣财经的作品】现在的成年人，普遍没有大人感？ # 财经知识 # ... https://v.douyin.com/swL2w3cRojs/ 02/04 z@G.vS iCH:/ "
+      },
+      "create_time": "1772847643832",
+      "time": "2026-03-07 09:40:43"
+    },
+    {
+      "message_id": "om_x100b558c6dfea8a8b34fa1328b25260",
+      "sender_id": "ou_44b68fca402174c284137f8dcdfeccb4",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "3.87 复制打开抖音，看看【南山资本论的作品】2026两会定调：四大主线，五大关键词解锁五年新机... https://v.douyin.com/G-3yD_zvfVE/ 09/20 WZZ:/ S@L.jc "
+      },
+      "create_time": "1772847667323",
+      "time": "2026-03-07 09:41:07"
+    },
+    {
+      "message_id": "om_x100b558c677920a4b20fbeb40d07cd1",
+      "sender_id": "ou_44b68fca402174c284137f8dcdfeccb4",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "9.43 复制打开抖音，看看【璐哥看透彻的作品】两会重点：国补继续，力度加大，征税后移 # 燃起来... https://v.douyin.com/ORnBSqZW-Pg/ sEU:/ 12/28 w@F.Hv "
+      },
+      "create_time": "1772847771423",
+      "time": "2026-03-07 09:42:51"
+    },
+    {
+      "message_id": "om_x100b558c63cd1498b2e82fcecca8673",
+      "sender_id": "ou_44b68fca402174c284137f8dcdfeccb4",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "8.43 复制打开抖音，看看【媚娘的作品】十五五开局之年，新一轮的经济重构与机遇密码# 20... https://v.douyin.com/TKqaKJFoo4k/ M@j.cA 08/17 MJV:/ "
+      },
+      "create_time": "1772847824217",
+      "time": "2026-03-07 09:43:44"
+    },
+    {
+      "message_id": "om_x100b558c61f9c8a8b310085be90ea97",
+      "sender_id": "ou_44b68fca402174c284137f8dcdfeccb4",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "8.25 复制打开抖音，看看【汤山老王的作品】人类历史上最大的泡沫，即将破裂 # 财经知识 # ... https://v.douyin.com/ySzkDtZCwSg/ 04/25 q@R.KJ ATy:/ "
+      },
+      "create_time": "1772847859393",
+      "time": "2026-03-07 09:44:19"
+    },
+    {
+      "message_id": "om_x100b558c7d12bca8b270d3ce767efde",
+      "sender_id": "ou_44b68fca402174c284137f8dcdfeccb4",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "7.99 复制打开抖音，看看【我的野蛮老婆的作品】2026两会：一场30万亿的财富重分配！ 为什么说... https://v.douyin.com/BpG8XK6MN-I/ dNJ:/ 03/12 h@O.xf "
+      },
+      "create_time": "1772847934106",
+      "time": "2026-03-07 09:45:34"
+    },
+    {
+      "message_id": "om_x100b558c748ffca0b296ceb9c59cb06",
+      "sender_id": "ou_44b68fca402174c284137f8dcdfeccb4",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/ONINVIg2-YHzE78WqiWHCA"
+      },
+      "create_time": "1772848036316",
+      "time": "2026-03-07 09:47:16"
+    },
+    {
+      "message_id": "om_x100b558c75f098a0b2043ec39f77c58",
+      "sender_id": "ou_44b68fca402174c284137f8dcdfeccb4",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/DjXZsc4Yv8o4SiaaY9S17w"
+      },
+      "create_time": "1772848051991",
+      "time": "2026-03-07 09:47:31"
+    },
+    {
+      "message_id": "om_x100b558c72b16ca4b310820d7f028bb",
+      "sender_id": "ou_44b68fca402174c284137f8dcdfeccb4",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/uGnSvaShrsRjjmbrRy4hfw"
+      },
+      "create_time": "1772848071990",
+      "time": "2026-03-07 09:47:51"
+    },
+    {
+      "message_id": "om_x100b558c7353d0a8b3f633b309a4a13",
+      "sender_id": "ou_44b68fca402174c284137f8dcdfeccb4",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/IL7qnxyqOukATtvJm8EfLw"
+      },
+      "create_time": "1772848090081",
+      "time": "2026-03-07 09:48:10"
+    },
+    {
+      "message_id": "om_x100b558c00a71ca0b368133d3e80f05",
+      "sender_id": "ou_44b68fca402174c284137f8dcdfeccb4",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/C2mVvJOFfxQst6QY9MgMbQ"
+      },
+      "create_time": "1772848358851",
+      "time": "2026-03-07 09:52:38"
+    },
+    {
+      "message_id": "om_x100b558c013ae8b0b293aba667d3ea2",
+      "sender_id": "ou_44b68fca402174c284137f8dcdfeccb4",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/lTDiX_NScAxkRCxUp5ZNhw"
+      },
+      "create_time": "1772848383637",
+      "time": "2026-03-07 09:53:03"
+    },
+    {
+      "message_id": "om_x100b558c1e00a0a4b2690c8659f12ce",
+      "sender_id": "ou_44b68fca402174c284137f8dcdfeccb4",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/9T-dexDfo1DdRT4jpNBddA"
+      },
+      "create_time": "1772848397011",
+      "time": "2026-03-07 09:53:17"
+    },
+    {
+      "message_id": "om_x100b558c1d7eb0a8b4b149e14ad3f8a",
+      "sender_id": "ou_44b68fca402174c284137f8dcdfeccb4",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/Rzz1MgMic802VWqZeiMBUA"
+      },
+      "create_time": "1772848443385",
+      "time": "2026-03-07 09:54:03"
+    },
+    {
+      "message_id": "om_x100b558c1ab7b0a0b24b97ecf7237cf",
+      "sender_id": "ou_44b68fca402174c284137f8dcdfeccb4",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/exWnzziexcE4bI9iZBYCwg"
+      },
+      "create_time": "1772848455816",
+      "time": "2026-03-07 09:54:15"
+    },
+    {
+      "message_id": "om_x100b558c13296d00b39d7307890dd80",
+      "sender_id": "ou_44b68fca402174c284137f8dcdfeccb4",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/zeGl1liDN6jLKKfFwNq4wQ"
+      },
+      "create_time": "1772848606426",
+      "time": "2026-03-07 09:56:46"
+    }
+  ]
+}

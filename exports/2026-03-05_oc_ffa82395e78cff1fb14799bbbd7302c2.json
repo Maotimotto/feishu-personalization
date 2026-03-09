@@ -1,0 +1,86 @@
+{
+  "chat_id": "oc_ffa82395e78cff1fb14799bbbd7302c2",
+  "date": "2026-03-05",
+  "duration": "1d",
+  "doc_url": null,
+  "message_count": 7,
+  "messages": [
+    {
+      "message_id": "om_x100b55b0a044d8a4c49deddda177ac2",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "4.64 复制打开抖音，看看【高盖伦的作品】99%%的人都小瞧了伊朗！为什么美国没办法轻易拿下... https://v.douyin.com/3irTkluHjyc/ Y@Z.mQ pdA:/ 11/08"
+      },
+      "create_time": "1772637928784",
+      "time": "2026-03-04 23:25:28"
+    },
+    {
+      "message_id": "om_x100b55b0a1502ca0c366322f5300fc0",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://mp.weixin.qq.com/s/PZaw6jpOZIXTde6kmpTeeA"
+      },
+      "create_time": "1772637946009",
+      "time": "2026-03-04 23:25:46"
+    },
+    {
+      "message_id": "om_x100b55b0bd7a58a0c4c1220dc55d44a",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "https://api3.cls.cn/share/article/2302350?os=ios&sv=8.7.3&app=cailianpress"
+      },
+      "create_time": "1772638011611",
+      "time": "2026-03-04 23:26:51"
+    },
+    {
+      "message_id": "om_x100b55a5fd590c80b20009920d27b16",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "hiyo"
+      },
+      "create_time": "1772690233424",
+      "time": "2026-03-05 13:57:13"
+    },
+    {
+      "message_id": "om_x100b55a59ed794a8b3521e0c7c190a3",
+      "sender_id": "ou_a3b0dfa47a09a4b2b14e3700eb8dec11",
+      "sender_type": "user",
+      "msg_type": "text",
+      "content": {
+        "text": "@_user_1 /fetch 48h"
+      },
+      "create_time": "1772690689800",
+      "time": "2026-03-05 14:04:49"
+    },
+    {
+      "message_id": "om_x100b55a59efe7888c1140e8c9056114",
+      "sender_id": "cli_a92c46da77f8dcc1",
+      "sender_type": "app",
+      "msg_type": "text",
+      "content": {
+        "text": "Fetching messages from the last 48.0 hours..."
+      },
+      "create_time": "1772690691371",
+      "time": "2026-03-05 14:04:51"
+    },
+    {
+      "message_id": "om_x100b55a59e876084b4ac80763300f55",
+      "sender_id": "cli_a92c46da77f8dcc1",
+      "sender_type": "app",
+      "msg_type": "text",
+      "content": {
+        "text": "Fetched 31 messages from the last 48.0 hours.\n- Text messages: 28\n- Other types: 3\n- Time range: 2026-03-03 23:24:20 ~ 2026-03-05 14:04:51"
+      },
+      "create_time": "1772690692841",
+      "time": "2026-03-05 14:04:52"
+    }
+  ]
+}
