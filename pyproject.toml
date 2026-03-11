@@ -1,0 +1,23 @@
+[project]
+name = "feishu-bot"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "langgraph>=0.3.0",
+    "langchain-core>=0.3.0",
+    "langchain-openai>=0.3.0",
+    "langsmith>=0.1.95",
+    "langgraph-cli[inmem]>=0.2.6",
+    "lark-oapi>=1.4.0",
+    "python-dotenv>=1.0.0",
+    "httpx>=0.27.0",
+    "openpyxl>=3.1.0",
+    "schedule>=1.2.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["agent*"]
