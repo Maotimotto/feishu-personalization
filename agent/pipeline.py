@@ -1,481 +1,506 @@
-"""Pipeline — 直接代码流替代 Agent 模式，按固定顺序串行执行。"""
+"""Pipeline — 为达人生成个性化热点榜单（固定流程）。
+
+流程：
+1. 加载达人提示词文件（instructions + creator_profile + output_format）
+2. 收集新闻素材（爬虫抓取 / Web Search，按达人配置决定）
+3a. LLM 生成初版榜单 + 提取搜索关键词
+3b. WebSearch 深度搜索背景信息
+3c. LLM 根据背景信息优化最终榜单
+4. 将生成的 Markdown 内容创建为飞书文档
+5. 将文档链接发送到群聊
+"""
 
 from __future__ import annotations
 
+import glob
 import json
-import time
+import os
+import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
+from langchain_core.messages import HumanMessage, SystemMessage
+
 from .config import get_config, get_llm
-from .tools.fetch_messages import fetch_chat_messages
-from .tools.extract_urls import extract_urls
-from .tools.fetch_url_content import fetch_url_content
-from .tools.classify_titles import classify_titles
-from .tools.create_spreadsheet import create_feishu_spreadsheet
-from .tools.send_message import send_feishu_message
-from .tools.export_data import export_data
+from .tools.create_feishu_doc import create_feishu_doc_from_markdown
 from .tools.web_search import search_web
+from .feishu import send_chat_text
 
-# ---------------------------------------------------------------------------
-# Step 5: 生成搜索词条 — 每个热词分组单独调 LLM
-# ---------------------------------------------------------------------------
-
-_SEARCH_TERMS_PROMPT = """你是一个专业的财经分析师。给定一个热词和该热词下的所有选题标题，分析这些选题涉及的核心话题，按多个维度生成需要进行 web search 的词条列表。
-
-今天是 {today}。
-
-## 搜索维度（必须覆盖以下 4 个方面）
-1. **事件本身（event）**：这件事是什么？最新进展？
-2. **背景原因（background）**：为什么发生？历史脉络？
-3. **涉及标的（assets）**：涉及的公司、股票、行业、资产品种？
-4. **市场影响（impact）**：对市场的影响是什么？各方反应？
-
-## 搜索策略
-- 每个词条 1-6 个词，短而精确
-- 3-5 个词条，确保覆盖不同维度
-- 每个词条必须有意义地不同，不要重复相近内容
-- 搜索中文财经内容用中文关键词
-- 需要特定日期信息时在词条中包含日期
-
-## 输出要求
-返回一个 JSON 数组，每个元素包含 aspect 和 query 两个字段。
-- aspect: 维度标签，取值为 event / background / assets / impact
-- query: 搜索词条字符串
-- 3-5 个词条
-- 只返回 JSON 数组，不要返回任何其他内容
-
-## 输出示例
-[
-  {{"aspect": "event", "query": "美联储3月议息会议 结果"}},
-  {{"aspect": "background", "query": "美联储 降息周期 历史"}},
-  {{"aspect": "assets", "query": "美联储降息 受益板块 股票"}},
-  {{"aspect": "impact", "query": "美联储降息 市场影响 美元 黄金"}}
-]"""
-
-# ---------------------------------------------------------------------------
-# Step 8: 优化热词 — 结合搜索结果精炼
-# ---------------------------------------------------------------------------
-
-_REFINE_PROMPT = """你是一个专业的财经编辑。根据以下信息，为这组标题生成一个更精准的热词。
-
-今天是 {today}。
-
-## 原始热词
-{keyword}
-
-## 该分类下的标题
-{titles}
-
-## 搜索获取的实时背景信息
-{search_results}
-
-## 要求
-1. 生成一个优化后的热词，替代原始热词
-2. 中文名词短语，不是句子
-3. 不超过 10 个字符
-4. 更具体（如"美联储降息"优于"美联储"）
-5. 有概括性（涵盖组内所有标题的核心主题）
-6. 准确（结合实时信息反映最新事实）
-7. 只返回热词文本，不要任何其他内容"""
-
-# ---------------------------------------------------------------------------
-# Step 7: 深度分析 — 基于搜索结果进行结构化事件分析
-# ---------------------------------------------------------------------------
-
-_DEEP_ANALYSIS_PROMPT = """你是一个专业的财经分析师。根据热词、相关选题标题和搜索获取的信息，对这个热点事件进行深度分析。
-
-今天是 {today}。
-
-## 热词
-{keyword}
-
-## 相关选题标题
-{titles}
-
-## 搜索结果
-{search_results}
-
-## 输出要求
-返回一个 JSON 对象，包含以下字段：
-- event_summary: 一句话概述事件（30字以内）
-- background: 事件背景和来龙去脉（2-3句话）
-- timeline: 关键时间节点（如：3月8日xxx，3月9日xxx）
-- affected_assets: 涉及的资产/标的列表（数组，如 ["美元指数", "黄金", "美债"]）
-- market_impact: 对市场的影响分析（2-3句话）
-- key_entities: 关键实体列表（数组，如 ["美联储", "鲍威尔", "FOMC"]）
-
-只返回 JSON 对象，不要返回任何其他内容。"""
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def _strip_code_fences(text: str) -> str:
-    text = text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
-    if text.endswith("```"):
-        text = text[:-3]
-    return text.strip()
+# ─── 达人数据源配置 ─────────────────────────────────────────────────────────
+# scrapers: 需要运行的爬虫源名称列表（对应 scrapers/main.py 中的 SOURCE_MAP）
+# jin10_breakfast: 是否抓取金十每日早餐全文
+# 未在此处列出的达人，走默认的 web search 流程
+
+CREATOR_DATA_SOURCES: dict[str, dict] = {
+    "飞哥": {
+        "scrapers": ["财联社", "金十", "富途", "东方财富"],
+        "jin10_breakfast": True,
+    },
+    "Trader": {
+        "scrapers": ["财联社早报"],
+        "jin10_breakfast": True,
+    },
+}
 
 
-def _generate_search_terms(keyword: str, group_titles: list[str], llm) -> list[dict]:
-    """Step 5: 对单个热词分组，调 LLM 生成带维度标注的搜索词条列表。
+# ─── Creator prompt loading ──────────────────────────────────────────────────
 
-    返回格式: [{"aspect": "event", "query": "..."}, ...]
+def find_prompt_file(creator_name: str) -> str | None:
+    """Find the prompt file for a creator by name.
+
+    Matches files like '{creator_name}*提示词.txt' in the project root.
     """
-    today = datetime.now().strftime("%Y-%m-%d")
-    title_list = "\n".join(f"{i+1}. {t}" for i, t in enumerate(group_titles))
+    pattern = os.path.join(_PROJECT_ROOT, f"{creator_name}*提示词.txt")
+    matches = glob.glob(pattern)
+    if matches:
+        return matches[0]
+    # Fallback: search all prompt files for a partial name match
+    all_prompts = glob.glob(os.path.join(_PROJECT_ROOT, "*提示词.txt"))
+    for path in all_prompts:
+        basename = os.path.basename(path)
+        if creator_name in basename:
+            return path
+    return None
+
+
+def list_creators() -> list[str]:
+    """List all available creator names from prompt files in project root."""
+    pattern = os.path.join(_PROJECT_ROOT, "*提示词.txt")
+    creators = []
+    for path in glob.glob(pattern):
+        basename = os.path.basename(path)
+        # Extract creator name: everything before '个性化' or '提示词'
+        match = re.match(r'^(.+?)(?:个性化.*)?提示词\.txt$', basename)
+        if match:
+            creators.append(match.group(1))
+    return creators
+
+
+def load_prompt_template(filepath: str) -> str:
+    """Load the prompt template, extracting static parts (instructions + profile + output_format).
+
+    Strips the <headlines> / <today's headlines> section since headlines
+    will be fetched dynamically via web search.
+    """
+    with open(filepath, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # Remove the <headlines> or <today's headlines> section
+    content = re.sub(
+        r"<(?:today's )?headlines>.*?</(?:today's )?headlines>",
+        "",
+        content,
+        flags=re.DOTALL,
+    )
+
+    return content.strip()
+
+
+# ─── Step 1: Generate search queries ─────────────────────────────────────────
+
+def _generate_search_queries(llm, template: str, today: str) -> list[dict]:
+    """Ask LLM to generate search queries based on creator profile.
+
+    Returns a list of dicts: [{"query": "...", "topic": "news"}, ...]
+    """
+    messages = [
+        SystemMessage(content=(
+            "你是一个搜索关键词生成器。根据下面的达人画像和指示，"
+            "生成用于获取今日财经新闻素材的搜索关键词列表。\n\n"
+            "要求：\n"
+            "- 生成 5-10 组搜索关键词\n"
+            "- 覆盖：通用财经早报、达人关注的细分领域、海外市场\n"
+            "- 每个关键词 2-6 个词，简短精准\n"
+            "- topic 从 general / news / finance 中选择\n\n"
+            "严格按以下 JSON 格式输出，不要输出其他内容：\n"
+            '[{"query": "关键词", "topic": "news"}, ...]'
+        )),
+        HumanMessage(content=(
+            f"今天是{today}。\n\n"
+            f"达人画像与指示：\n{template}"
+        )),
+    ]
+
+    response = llm.invoke(messages)
+    content = response.content.strip()
+
+    # Extract JSON array from response (handle markdown code blocks)
+    json_match = re.search(r'\[.*\]', content, re.DOTALL)
+    if json_match:
+        content = json_match.group(0)
 
     try:
-        resp = llm.invoke([
-            {"role": "system", "content": _SEARCH_TERMS_PROMPT.format(today=today)},
-            {"role": "user", "content": f"热词：{keyword}\n选题标题：\n{title_list}"},
-        ])
-        terms_text = _strip_code_fences(resp.content)
-        terms = json.loads(terms_text)
-        if isinstance(terms, list):
-            # 兼容新旧格式
-            result = []
-            for t in terms[:5]:
-                if isinstance(t, dict) and "query" in t:
-                    result.append({"aspect": t.get("aspect", "event"), "query": str(t["query"])})
-                elif isinstance(t, str):
-                    result.append({"aspect": "event", "query": t})
-            return result if result else [{"aspect": "event", "query": keyword}]
-    except Exception as e:
-        print(f"[pipeline] 生成搜索词条失败 '{keyword}': {e}")
+        queries = json.loads(content)
+        if isinstance(queries, list):
+            return queries
+    except json.JSONDecodeError:
+        pass
 
-    # Fallback: 用热词本身作为搜索词
-    return [{"aspect": "event", "query": keyword}]
+    # Fallback: default queries
+    return [
+        {"query": f"财经早报 {today}", "topic": "news"},
+        {"query": "今日财经新闻", "topic": "news"},
+        {"query": "A股 市场行情", "topic": "finance"},
+        {"query": "美股 市场行情", "topic": "finance"},
+        {"query": "宏观经济 政策", "topic": "news"},
+    ]
 
 
-def _execute_web_search(terms: list[dict], config: dict) -> list[dict]:
-    """Step 6: 按序对词条列表执行 web search，返回结构化搜索结果列表。
+# ─── Step 2: Execute searches ────────────────────────────────────────────────
 
-    返回格式: [{"aspect": "event", "query": "...", "results": [...]}, ...]
-    """
+def _execute_searches(queries: list[dict]) -> str:
+    """Execute all search queries and aggregate results into a single text."""
     all_results = []
 
-    for term in terms:
-        query = term["query"]
-        aspect = term.get("aspect", "event")
-        print(f"[pipeline] 搜索 [{aspect}]: {query}")
-        raw = search_web.invoke({"query": query, "num_results": 5, "topic": "news"})
+    for i, q in enumerate(queries, 1):
+        query = q.get("query", "")
+        topic = q.get("topic", "news")
+        num_results = q.get("num_results", 5)
 
-        # 解析结构化结果（Exa 返回 JSON）或纯文本（Tavily 回退）
+        if not query:
+            continue
+
+        print(f"[pipeline]   Search {i}/{len(queries)}: {query}")
         try:
-            parsed = json.loads(raw)
-            results = parsed.get("results", [])
-        except (json.JSONDecodeError, TypeError):
-            # Tavily 返回纯文本，保持兼容
-            results = [{"text": raw}] if raw and "未找到" not in raw and "错误" not in raw else []
+            result = search_web.invoke({
+                "query": query,
+                "num_results": num_results,
+                "topic": topic,
+            })
+            all_results.append(f"### 搜索「{query}」的结果：\n{result}")
+        except Exception as e:
+            print(f"[pipeline]   Search failed for '{query}': {e}")
+            all_results.append(f"### 搜索「{query}」失败：{e}")
 
-        if results:
-            all_results.append({"aspect": aspect, "query": query, "results": results})
-
-    return all_results
+    return "\n\n".join(all_results)
 
 
-def _format_search_for_llm(search_data: list[dict]) -> str:
-    """将结构化搜索结果格式化为 LLM 可读的文本。"""
-    if not search_data:
-        return "（未获取到搜索结果）"
+# ─── Step 2b: Collect scraper data (for configured creators) ─────────────
 
-    sections = []
-    for item in search_data:
-        query = item.get("query", "")
-        aspect = item.get("aspect", "")
-        results = item.get("results", [])
-        lines = [f"【{aspect}: {query}】"]
-        for r in results:
-            title = r.get("title", "")
-            summary = r.get("summary", "")
-            text = r.get("text", "")
-            highlight = r.get("highlight", "")
-            if title:
-                lines.append(f"  标题: {title}")
-            # 优先使用 summary，其次 text，最后 highlight
-            content = summary or text or highlight
-            if content:
-                lines.append(f"  内容: {content[:800]}")
-        sections.append("\n".join(lines))
+def _collect_scraper_data(source_cfg: dict) -> str:
+    """Run scrapers and jin10_breakfast, return aggregated text for LLM."""
+    from .scrapers.jin10_breakfast import get_today_breakfast
+
+    sections: list[str] = []
+
+    # ── 金十每日早餐 ──
+    if source_cfg.get("jin10_breakfast"):
+        print("[pipeline]   Fetching 金十每日早餐...")
+        try:
+            breakfast = get_today_breakfast()
+            if breakfast["content"]:
+                sections.append(
+                    f"## 金十数据全球财经早餐\n"
+                    f"来源：{breakfast['url']}\n\n"
+                    f"{breakfast['content']}"
+                )
+                print("[pipeline]   金十早餐抓取成功")
+            else:
+                print("[pipeline]   金十早餐：未找到今日内容")
+        except Exception as e:
+            print(f"[pipeline]   金十早餐抓取失败: {e}")
+
+    # ── 各新闻源爬虫 ──
+    scraper_sources = source_cfg.get("scrapers", [])
+    if scraper_sources:
+        from .scrapers.cls import CLSScraper
+        from .scrapers.cls_morning import CLSMorningScraper
+        from .scrapers.jin10 import Jin10Scraper
+        from .scrapers.futu import FutuScraper
+        from .scrapers.eastmoney_news import EastmoneyNewsScraper
+        from .scrapers.base import BaseScraper
+
+        source_map: dict[str, type[BaseScraper]] = {
+            "财联社": CLSScraper,
+            "财联社早报": CLSMorningScraper,
+            "金十": Jin10Scraper,
+            "富途": FutuScraper,
+            "东方财富": EastmoneyNewsScraper,
+        }
+
+        def _fetch_one(name: str) -> str | None:
+            cls = source_map.get(name)
+            if not cls:
+                return None
+            print(f"[pipeline]   [{name}] 正在抓取...")
+            scraper = cls()
+            articles, errors = scraper.fetch()
+            if errors:
+                for err in errors:
+                    print(f"[pipeline]   [{name}] 错误: {err[:120]}")
+            if not articles:
+                return None
+            print(f"[pipeline]   [{name}] 获取 {len(articles)} 篇文章")
+            lines = [f"## {name} ({len(articles)} 篇)\n"]
+            for a in articles:
+                lines.append(f"- **{a.title}**")
+                if a.summary:
+                    lines.append(f"  {a.summary[:200]}")
+                if a.url:
+                    lines.append(f"  链接：{a.url}")
+                lines.append("")
+            return "\n".join(lines)
+
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {
+                executor.submit(_fetch_one, name): name
+                for name in scraper_sources
+            }
+            for future in as_completed(futures):
+                name = futures[future]
+                try:
+                    result = future.result()
+                    if result:
+                        sections.append(result)
+                        print(f"[pipeline]   {name} 数据已收集")
+                except Exception as e:
+                    print(f"[pipeline]   {name} 抓取失败: {e}")
+
+    return "\n\n---\n\n".join(sections)
+
+
+# ─── Step 3: Generate content ────────────────────────────────────────────────
+
+def _generate_content(llm, template: str, today: str, search_results: str) -> str:
+    """Ask LLM to generate the final personalized hotlist from search results."""
+    messages = [
+        SystemMessage(content=template),
+        HumanMessage(content=(
+            f"今天是{today}。\n\n"
+            f"以下是今日搜索到的新闻素材：\n\n"
+            f"{search_results}\n\n"
+            f"请根据以上新闻素材和达人画像，生成个性化热点榜单。\n"
+            f"按照 output_format 的格式输出 Markdown 内容。"
+        )),
+    ]
+
+    response = llm.invoke(messages)
+    return response.content
+
+
+# ─── Step 3a: Generate initial content + search queries ─────────────────────
+
+def _generate_initial_content_and_queries(
+    llm, template: str, today: str, news_material: str,
+) -> tuple[str, list[dict]]:
+    """First LLM call: produce an initial hotlist AND search keywords for deeper research.
+
+    Returns:
+        (initial_content, search_queries) where search_queries is a list of
+        dicts like [{"query": "...", "reason": "..."}, ...].
+    """
+    messages = [
+        SystemMessage(content=template),
+        HumanMessage(content=(
+            f"今天是{today}。\n\n"
+            f"以下是今日搜索到的新闻素材：\n\n"
+            f"{news_material}\n\n"
+            "请完成以下两项任务：\n\n"
+            "【任务一】根据以上新闻素材和达人画像，生成个性化热点榜单初版。"
+            "按照 output_format 的格式输出 Markdown 内容。\n\n"
+            "【任务二】针对初版榜单中的各个选题，列出需要深度搜索的关键词，"
+            "用于后续补充背景资料、关键数据和深度信息。\n\n"
+            "请严格按以下格式输出，使用 XML 标签分隔：\n\n"
+            "<initial_content>\n"
+            "（这里输出初版榜单 Markdown）\n"
+            "</initial_content>\n\n"
+            "<search_queries>\n"
+            '[{"query": "搜索关键词", "reason": "搜索原因"}, ...]\n'
+            "</search_queries>"
+        )),
+    ]
+
+    response = llm.invoke(messages)
+    content = response.content
+
+    # Parse initial_content
+    initial_match = re.search(
+        r"<initial_content>\s*(.*?)\s*</initial_content>", content, re.DOTALL
+    )
+    initial_content = initial_match.group(1).strip() if initial_match else content
+
+    # Parse search_queries
+    queries: list[dict] = []
+    queries_match = re.search(
+        r"<search_queries>\s*(.*?)\s*</search_queries>", content, re.DOTALL
+    )
+    if queries_match:
+        raw = queries_match.group(1).strip()
+        json_match = re.search(r"\[.*\]", raw, re.DOTALL)
+        if json_match:
+            try:
+                parsed = json.loads(json_match.group(0))
+                if isinstance(parsed, list):
+                    queries = parsed
+            except json.JSONDecodeError:
+                pass
+
+    return initial_content, queries
+
+
+# ─── Step 3b: Deep background search ────────────────────────────────────────
+
+def _search_background(queries: list[dict]) -> str:
+    """Execute deep web searches for each query and return aggregated background info."""
+    if not queries:
+        return ""
+
+    sections: list[str] = []
+    for i, q in enumerate(queries, 1):
+        query_text = q.get("query", "")
+        reason = q.get("reason", "")
+        if not query_text:
+            continue
+
+        print(f"[pipeline]   Background search {i}/{len(queries)}: {query_text}")
+        try:
+            result = search_web.invoke({
+                "query": query_text,
+                "num_results": 5,
+                "search_depth": "advanced",
+                "topic": "news",
+            })
+            header = f"### 「{query_text}」"
+            if reason:
+                header += f"（{reason}）"
+            sections.append(f"{header}\n{result}")
+        except Exception as e:
+            print(f"[pipeline]   Background search failed for '{query_text}': {e}")
 
     return "\n\n".join(sections)
 
 
-def _deep_analyze(
-    keyword: str,
-    group_titles: list[str],
-    search_data: list[dict],
-    llm,
+# ─── Step 3c: Refine content with background ────────────────────────────────
+
+def _refine_content(
+    llm, template: str, initial_content: str, background_info: str,
 ) -> str:
-    """Step 7: 基于搜索结果进行深度分析，返回格式化的事件分析文本。"""
-    today = datetime.now().strftime("%Y-%m-%d")
-    title_list = "\n".join(f"{i+1}. {t}" for i, t in enumerate(group_titles))
-    search_text = _format_search_for_llm(search_data)
+    """Second LLM call: refine the initial hotlist using deep background info."""
+    messages = [
+        SystemMessage(content=(
+            "你是一位资深财经内容编辑。你的任务是根据补充的背景资料，优化初版热点榜单。\n\n"
+            "优化要求：\n"
+            "- 丰富选题的切入角度，增加深度分析维度\n"
+            "- 补充关键数据、行业背景、市场影响等细节\n"
+            "- 修正初版中可能存在的事实错误\n"
+            "- 保持原有的格式和风格不变\n"
+            "- 不要凭空添加没有素材支撑的内容\n\n"
+            "以下是达人画像供参考：\n" + template
+        )),
+        HumanMessage(content=(
+            "以下是初版榜单：\n\n"
+            f"{initial_content}\n\n"
+            "---\n\n"
+            "以下是深度搜索获取的背景资料：\n\n"
+            f"{background_info}\n\n"
+            "---\n\n"
+            "请根据以上背景资料优化初版榜单，直接输出最终 Markdown 内容。"
+        )),
+    ]
 
-    try:
-        resp = llm.invoke([
-            {
-                "role": "system",
-                "content": _DEEP_ANALYSIS_PROMPT.format(
-                    today=today,
-                    keyword=keyword,
-                    titles=title_list,
-                    search_results=search_text,
-                ),
-            },
-            {"role": "user", "content": "请对该热点事件进行深度分析。"},
-        ])
-        analysis_text = _strip_code_fences(resp.content)
-        analysis = json.loads(analysis_text)
-
-        # 格式化为可读文本
-        parts = []
-        if analysis.get("event_summary"):
-            parts.append(f"【概述】{analysis['event_summary']}")
-        if analysis.get("background"):
-            parts.append(f"【背景】{analysis['background']}")
-        if analysis.get("timeline"):
-            parts.append(f"【时间线】{analysis['timeline']}")
-        if analysis.get("affected_assets"):
-            assets = analysis["affected_assets"]
-            if isinstance(assets, list):
-                parts.append(f"【涉及标的】{'、'.join(assets)}")
-            else:
-                parts.append(f"【涉及标的】{assets}")
-        if analysis.get("market_impact"):
-            parts.append(f"【市场影响】{analysis['market_impact']}")
-        if analysis.get("key_entities"):
-            entities = analysis["key_entities"]
-            if isinstance(entities, list):
-                parts.append(f"【关键实体】{'、'.join(entities)}")
-            else:
-                parts.append(f"【关键实体】{entities}")
-
-        return "\n".join(parts) if parts else "（分析生成失败）"
-    except Exception as e:
-        print(f"[pipeline] 深度分析失败 '{keyword}': {e}")
-        # Fallback: 返回搜索结果的纯文本摘要
-        return _format_search_for_llm(search_data)[:500] if search_data else "（分析生成失败）"
+    response = llm.invoke(messages)
+    return response.content
 
 
-def _refine_single_keyword(
-    keyword: str,
-    group_titles: list[str],
-    search_data: list[dict],
-    llm,
-) -> str:
-    """Step 8: 结合搜索结果优化单个热词。"""
-    today = datetime.now().strftime("%Y-%m-%d")
-    title_list = "\n".join(f"{i+1}. {t}" for i, t in enumerate(group_titles))
-    search_results_text = _format_search_for_llm(search_data)
+# ─── Pipeline execution ─────────────────────────────────────────────────────
 
-    try:
-        resp = llm.invoke([
-            {
-                "role": "system",
-                "content": _REFINE_PROMPT.format(
-                    today=today,
-                    keyword=keyword,
-                    titles=title_list,
-                    search_results=search_results_text,
-                ),
-            },
-            {"role": "user", "content": "请生成优化后的热词。"},
-        ])
-        refined = resp.content.strip().strip("\"'")
-        if refined and len(refined) <= 10:
-            return refined
-    except Exception as e:
-        print(f"[pipeline] 优化热词失败 '{keyword}': {e}")
+def run_pipeline(creator_name: str, chat_id: str) -> str:
+    """Execute the personalized hot topics pipeline for a creator.
 
-    return keyword
-
-
-# ---------------------------------------------------------------------------
-# 主流水线
-# ---------------------------------------------------------------------------
-
-
-def run_pipeline(chat_id: str, duration: str = "1d") -> str:
-    """直接代码流执行完整的链接汇总流水线。
-
-    Step 1: fetch_chat_messages
-    Step 2: extract_urls
-    Step 3: fetch_url_content
-    Step 4: classify_titles
-    Step 5: generate_search_terms (per group, LLM, multi-dimension)
-    Step 6: web_search (per term, enhanced with text/summary)
-    Step 7: deep_analyze (per group, LLM structured analysis) ★ NEW
-    Step 8: refine_keywords (per group, LLM + search results)
-    Step 9: create_spreadsheet + send_message + export_data
+    Fixed pipeline steps:
+        1. Load creator prompt
+        2. LLM generates search queries based on creator profile
+        3. Execute searches and collect results
+        4. LLM generates final content from search results
+        5. Create Feishu document
+        6. Send document link to chat
 
     Args:
-        chat_id: 飞书群聊 ID
-        duration: 时间范围，如 "2h", "1d"
+        creator_name: Name of the creator (e.g., "Trader", "飞哥").
+        chat_id: Feishu chat ID to send the result to.
 
     Returns:
-        最终结果摘要文本
+        The Feishu document URL, or an error message.
     """
-    pipeline_start = time.time()
-    config = get_config()
+    # 1. Load creator prompt
+    prompt_file = find_prompt_file(creator_name)
+    if not prompt_file:
+        error = f"未找到达人 '{creator_name}' 的提示词文件"
+        print(f"[pipeline] {error}")
+        return error
 
-    # ── Step 1: 获取消息 ──
-    print(f"\n{'='*60}")
-    print(f"[pipeline] Step 1/9: 获取群聊消息 (chat_id={chat_id}, duration={duration})")
-    print(f"{'='*60}")
-    step1_start = time.time()
-    step1_result = fetch_chat_messages.invoke({"chat_id": chat_id, "duration": duration})
-    step1_data = json.loads(step1_result)
-    msg_count = step1_data.get("message_count", 0)
-    print(f"[pipeline] Step 1 完成: {msg_count} 条消息 ({time.time()-step1_start:.1f}s)")
+    template = load_prompt_template(prompt_file)
+    print(f"[pipeline] Loaded prompt for '{creator_name}' from {os.path.basename(prompt_file)}")
 
-    if msg_count == 0:
-        return f"过去 {duration} 内没有群聊消息。"
-
-    # ── Step 2: 提取链接 ──
-    print(f"\n{'='*60}")
-    print(f"[pipeline] Step 2/9: 提取链接")
-    print(f"{'='*60}")
-    step2_start = time.time()
-    step2_result = extract_urls.invoke({"messages_json": step1_result})
-    step2_data = json.loads(step2_result)
-    url_count = step2_data.get("url_count", 0)
-    print(f"[pipeline] Step 2 完成: {url_count} 个链接 ({time.time()-step2_start:.1f}s)")
-
-    if url_count == 0:
-        return f"过去 {duration} 内群聊中没有分享链接。"
-
-    # ── Step 3: 获取链接内容 ──
-    print(f"\n{'='*60}")
-    print(f"[pipeline] Step 3/9: 获取链接标题和内容")
-    print(f"{'='*60}")
-    step3_start = time.time()
-    step3_result = fetch_url_content.invoke({"urls_json": step2_result})
-    step3_data = json.loads(step3_result)
-    results_list = step3_data.get("results", [])
-    print(f"[pipeline] Step 3 完成: {len(results_list)} 个链接内容 ({time.time()-step3_start:.1f}s)")
-
-    # ── Step 4: 热词分类 ──
-    print(f"\n{'='*60}")
-    print(f"[pipeline] Step 4/9: LLM 热词分类")
-    print(f"{'='*60}")
-    step4_start = time.time()
-    step4_result = classify_titles.invoke({"titles_json": step3_result})
-    step4_data = json.loads(step4_result)
-    groups = step4_data.get("groups", {})
-    titles = step4_data.get("titles", [])
-    print(f"[pipeline] Step 4 完成: {len(groups)} 个热词分组 ({time.time()-step4_start:.1f}s)")
-
-    # ── Steps 5-8: 搜索 + 深度分析 + 优化热词 ──
-    print(f"\n{'='*60}")
-    print(f"[pipeline] Steps 5-8/9: 搜索词条生成 + Web Search + 深度分析 + 热词优化")
-    print(f"{'='*60}")
-    step5_start = time.time()
-
+    today = datetime.now().strftime("%Y年%m月%d日")
     llm = get_llm()
-    refined_groups: dict[str, list[int]] = {}
-    analysis_map: dict[str, str] = {}  # keyword → 事件分析文本
 
-    for keyword, indices in groups.items():
-        # 跳过特殊分组
-        if keyword in ("其他", "未分类"):
-            refined_groups[keyword] = indices
-            analysis_map[keyword] = ""
-            continue
+    # 2. Collect news material — scrapers or web search
+    source_cfg = CREATOR_DATA_SOURCES.get(creator_name)
 
-        group_titles = [titles[i] for i in indices if 0 <= i < len(titles)]
-        if not group_titles:
-            refined_groups[keyword] = indices
-            analysis_map[keyword] = ""
-            continue
+    if source_cfg:
+        # ── 使用爬虫抓取数据 ──
+        print("[pipeline] Step 1: Collecting scraper data...")
+        news_material = _collect_scraper_data(source_cfg)
+    else:
+        # ── 默认走 Web Search 流程 ──
+        print("[pipeline] Step 1: Generating search queries...")
+        queries = _generate_search_queries(llm, template, today)
+        print(f"[pipeline] Generated {len(queries)} search queries")
 
-        print(f"\n--- 热词: {keyword} ({len(group_titles)} 个选题) ---")
+        print("[pipeline] Step 2: Executing searches...")
+        news_material = _execute_searches(queries)
 
-        # Step 5: 生成搜索词条（多维度）
-        terms = _generate_search_terms(keyword, group_titles, llm)
-        print(f"[pipeline] 生成搜索词条: {[t['query'] for t in terms]}")
+    if not news_material.strip():
+        return "未获取到任何新闻素材"
 
-        # Step 6: 执行 web search（增强版）
-        search_data = _execute_web_search(terms, config)
-        result_count = sum(len(s.get("results", [])) for s in search_data)
-        print(f"[pipeline] 搜索完成: {result_count} 条结果")
-
-        # Step 7: 深度分析
-        analysis_text = _deep_analyze(keyword, group_titles, search_data, llm)
-        print(f"[pipeline] 深度分析完成: {len(analysis_text)} 字")
-
-        # Step 8: 优化热词
-        refined = _refine_single_keyword(keyword, group_titles, search_data, llm)
-
-        # 检查重复
-        if refined != keyword and refined not in refined_groups:
-            print(f"[pipeline] 热词优化: '{keyword}' -> '{refined}'")
-            refined_groups[refined] = indices
-            analysis_map[refined] = analysis_text
-        else:
-            if refined != keyword:
-                print(f"[pipeline] 热词保留: '{keyword}' (优化结果 '{refined}' 重复)")
-            refined_groups[keyword] = indices
-            analysis_map[keyword] = analysis_text
-
-    print(f"\n[pipeline] Steps 5-8 完成 ({time.time()-step5_start:.1f}s)")
-
-    # ── Step 9: 创建表格 + 发送消息 + 导出数据 ──
-    print(f"\n{'='*60}")
-    print(f"[pipeline] Step 9/9: 创建飞书表格 + 发送消息 + 导出数据")
-    print(f"{'='*60}")
-    step9_start = time.time()
-
-    # 合并数据：refined groups + results + analysis_map
-    merged_data = {
-        "group_count": len(refined_groups),
-        "title_count": len(titles),
-        "groups": refined_groups,
-        "titles": titles,
-        "results": results_list,
-        "analysis_map": analysis_map,
-    }
-    merged_json = json.dumps(merged_data, ensure_ascii=False)
-
-    # 9a: 创建飞书表格
-    sheet_result = create_feishu_spreadsheet.invoke({
-        "classified_json": merged_json,
-    })
-    sheet_data = json.loads(sheet_result)
-    sheet_url = sheet_data.get("sheet_url", "")
-    print(f"[pipeline] 表格创建完成: {sheet_url}")
-
-    # 9b: 发送消息到群聊
-    if sheet_url:
-        today = datetime.now().strftime("%Y-%m-%d")
-        msg_text = f"{today} 热点事件汇总\n{sheet_url}"
-        send_feishu_message.invoke({
-            "chat_id": chat_id,
-            "text": msg_text,
-        })
-        print(f"[pipeline] 消息已发送到群聊")
-
-    # 9c: 导出数据
-    export_result = export_data.invoke({
-        "data_json": merged_json,
-        "chat_id": chat_id,
-        "export_format": "both",
-    })
-    export_data_result = json.loads(export_result)
-    export_files = export_data_result.get("files", [])
-    print(f"[pipeline] 数据已导出: {[f.get('path', '') for f in export_files]}")
-
-    total_time = time.time() - pipeline_start
-    print(f"\n{'='*60}")
-    print(f"[pipeline] 全部完成! 总耗时 {total_time:.1f}s")
-    print(f"{'='*60}")
-
-    summary = (
-        f"汇总完成！\n"
-        f"- 消息: {msg_count} 条\n"
-        f"- 链接: {url_count} 个\n"
-        f"- 热词分组: {len(refined_groups)} 个\n"
-        f"- 表格: {sheet_url}\n"
-        f"- 耗时: {total_time:.0f}s"
+    # 3a. LLM generates initial content + search queries
+    print("[pipeline] Step 3a: Generating initial content and search queries...")
+    initial_content, search_queries = _generate_initial_content_and_queries(
+        llm, template, today, news_material
     )
-    return summary
+    print(f"[pipeline] Initial content: {len(initial_content)} chars, "
+          f"search queries: {len(search_queries)}")
+
+    # 3b. WebSearch deep background search
+    if search_queries:
+        print(f"[pipeline] Step 3b: Searching background info ({len(search_queries)} queries)...")
+        background_info = _search_background(search_queries)
+    else:
+        print("[pipeline] Step 3b: No search queries, skipping background search")
+        background_info = ""
+
+    # 3c. LLM refines content with background info
+    if background_info.strip():
+        print("[pipeline] Step 3c: Refining content with background info...")
+        final_content = _refine_content(llm, template, initial_content, background_info)
+    else:
+        print("[pipeline] Step 3c: No background info, using initial content as final")
+        final_content = initial_content
+
+    if not final_content:
+        return "Pipeline 未生成内容"
+
+    print(f"[pipeline] Generated {len(final_content)} chars of content")
+
+    # 4. Create Feishu document
+    doc_title = f"☀️ {creator_name} 早间热点速览 · {datetime.now().strftime('%Y-%m-%d')}"
+    result = create_feishu_doc_from_markdown(doc_title, final_content)
+
+    if "error" in result:
+        error_msg = f"创建飞书文档失败: {result['error']}"
+        print(f"[pipeline] {error_msg}")
+        return error_msg
+
+    doc_url = result["doc_url"]
+    print(f"[pipeline] Document created: {doc_url}")
+
+    # 5. Send document link to chat
+    send_text = f"📋 {creator_name} 的个性化热点榜单已生成：\n{doc_url}"
+    send_chat_text(chat_id, send_text)
+    print(f"[pipeline] Sent to chat {chat_id}")
+
+    return doc_url

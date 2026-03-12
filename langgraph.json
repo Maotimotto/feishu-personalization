@@ -1,7 +1,0 @@
-{
-  "dependencies": ["."],
-  "graphs": {
-    "agent": "agent.agent:agent"
-  },
-  "env": ".env"
-}

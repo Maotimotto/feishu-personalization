@@ -68,7 +68,7 @@ def api_headers() -> dict[str, str]:
 
 
 def set_org_editable(token: str, doc_type: str) -> None:
-    """Grant all org members edit permission on a document.
+    """Grant anyone-with-link read permission on a document.
 
     Args:
         token: The document/spreadsheet token.
@@ -78,14 +78,14 @@ def set_org_editable(token: str, doc_type: str) -> None:
         f"{_API}/drive/v1/permissions/{token}/public",
         params={"type": doc_type},
         headers=api_headers(),
-        json={"link_share_entity": "tenant_editable"},
+        json={"link_share_entity": "anyone_readable"},
         timeout=15,
     )
     data = resp.json()
     if data.get("code", -1) != 0:
-        print(f"Warning: set org permission failed: code={data.get('code')} msg={data.get('msg')}")
+        print(f"Warning: set permission failed: code={data.get('code')} msg={data.get('msg')}")
     else:
-        print(f"Set org-editable permission for {doc_type} {token}")
+        print(f"Set anyone-readable permission for {doc_type} {token}")
 
 
 def send_chat_text(chat_id: str, text: str) -> str | None:
@@ -111,18 +111,3 @@ def send_chat_text(chat_id: str, text: str) -> str | None:
         return response.data.message_id
     print(f"[feishu] Send failed: code={response.code} msg={response.msg}")
     return None
-
-
-def update_message_text(message_id: str, text: str) -> bool:
-    """Update an existing message's text content."""
-    resp = httpx.patch(
-        f"{_API}/im/v1/messages/{message_id}",
-        headers=api_headers(),
-        json={"msg_type": "text", "content": json.dumps({"text": text})},
-        timeout=10,
-    )
-    data = resp.json()
-    if data.get("code", -1) != 0:
-        print(f"[feishu] Update msg failed: code={data.get('code')} msg={data.get('msg')}")
-        return False
-    return True

@@ -1,13 +1,12 @@
-"""Tool: 创建飞书文档。"""
+"""Tool: 创建飞书文档 — 将 Markdown 内容写入飞书文档。"""
 
 from __future__ import annotations
 
 import json
-import os
+import re
 import time
 
 import httpx
-from langchain_core.tools import tool
 
 from ..config import get_config
 from ..feishu import api_headers, set_org_editable
@@ -16,23 +15,131 @@ _API = "https://open.feishu.cn/open-apis"
 _BATCH = 50
 
 
-# Block builders
+# ─── Feishu block builders ───────────────────────────────────────────────────
 
-def _text_run(content: str) -> dict:
-    return {"text_run": {"content": content}}
+def _text_run(content: str, bold: bool = False, link: str = "") -> dict:
+    """Create a text_run element."""
+    style: dict = {}
+    if bold:
+        style["bold"] = True
+    if link:
+        style["link"] = {"url": link}
+    element: dict = {
+        "text_element_type": 1,
+        "text_run": {"content": content},
+    }
+    if style:
+        element["text_run"]["text_element_style"] = style
+    return element
 
 
-def _heading1(text: str) -> dict:
-    return {"block_type": 3, "heading1": {"elements": [_text_run(text)]}}
+def _heading(level: int, text: str) -> dict:
+    """Create a heading block (level 1-9 → block_type 3-11)."""
+    block_type = 2 + level  # heading1=3, heading2=4, heading3=5, ...
+    key = f"heading{level}"
+    return {"block_type": block_type, key: {"elements": [_text_run(text)]}}
 
 
-def _heading2(text: str) -> dict:
-    return {"block_type": 4, "heading2": {"elements": [_text_run(text)]}}
+def _text_block(elements: list[dict]) -> dict:
+    """Create a text (paragraph) block."""
+    return {"block_type": 2, "text": {"elements": elements}}
 
 
-def _text_block(text: str) -> dict:
-    return {"block_type": 2, "text": {"elements": [_text_run(text)]}}
+def _bullet_block(elements: list[dict]) -> dict:
+    """Create a bullet list item block."""
+    return {"block_type": 13, "bullet": {"elements": elements}}
 
+
+def _ordered_block(elements: list[dict]) -> dict:
+    """Create an ordered list item block."""
+    return {"block_type": 12, "ordered": {"elements": elements}}
+
+
+def _quote_block(elements: list[dict]) -> dict:
+    """Create a quote block."""
+    return {"block_type": 15, "quote": {"elements": elements}}
+
+
+def _divider_block() -> dict:
+    """Create a horizontal divider block."""
+    return {"block_type": 22, "divider": {}}
+
+
+# ─── Markdown → Feishu Blocks ────────────────────────────────────────────────
+
+def _parse_inline(text: str) -> list[dict]:
+    """Parse inline markdown (bold) into text_run elements."""
+    elements = []
+    parts = re.split(r'(\*\*[^*]+\*\*)', text)
+    for part in parts:
+        if not part:
+            continue
+        if part.startswith("**") and part.endswith("**"):
+            elements.append(_text_run(part[2:-2], bold=True))
+        else:
+            elements.append(_text_run(part))
+    return elements if elements else [_text_run(text)]
+
+
+def markdown_to_blocks(md: str) -> list[dict]:
+    """Convert markdown text to a list of Feishu document blocks."""
+    blocks: list[dict] = []
+    lines = md.split("\n")
+    i = 0
+
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+
+        # Empty line → skip
+        if not stripped:
+            i += 1
+            continue
+
+        # Horizontal rule
+        if stripped in ("---", "***", "___"):
+            blocks.append(_divider_block())
+            i += 1
+            continue
+
+        # Headings
+        heading_match = re.match(r'^(#{1,6})\s+(.+)$', stripped)
+        if heading_match:
+            level = len(heading_match.group(1))
+            text = heading_match.group(2).strip()
+            blocks.append(_heading(level, text))
+            i += 1
+            continue
+
+        # Blockquote
+        if stripped.startswith("> "):
+            quote_text = stripped[2:]
+            blocks.append(_quote_block(_parse_inline(quote_text)))
+            i += 1
+            continue
+
+        # Unordered list
+        list_match = re.match(r'^[-*+]\s+(.+)$', stripped)
+        if list_match:
+            blocks.append(_bullet_block(_parse_inline(list_match.group(1))))
+            i += 1
+            continue
+
+        # Ordered list
+        ordered_match = re.match(r'^\d+\.\s+(.+)$', stripped)
+        if ordered_match:
+            blocks.append(_ordered_block(_parse_inline(ordered_match.group(1))))
+            i += 1
+            continue
+
+        # Regular paragraph
+        blocks.append(_text_block(_parse_inline(stripped)))
+        i += 1
+
+    return blocks
+
+
+# ─── Feishu API ──────────────────────────────────────────────────────────────
 
 def _create_document(title: str) -> str:
     """Create a Feishu document, return document_id."""
@@ -67,78 +174,27 @@ def _append_blocks(document_id: str, blocks: list[dict]) -> None:
             time.sleep(0.4)
 
 
-def _extract_text(content) -> str:
-    if isinstance(content, dict):
-        return content.get("text", json.dumps(content, ensure_ascii=False))
-    return str(content)
-
-
-@tool
-def create_feishu_doc(messages_json: str, title: str = "") -> str:
-    """创建飞书文档，将群聊消息格式化为带时间戳的聊天记录文档。
-
-    ## 何时使用
-    - 用户要求创建消息摘要文档时
-    - 需要将群聊消息归档保存为文档时
-    - 注意：这是创建「消息记录文档」，不是「链接分类表格」
-
-    ## 何时不用
-    - 用户要求的是链接分类汇总 → 应使用 create_feishu_spreadsheet
-    - 消息列表为空时（会返回错误）
-
-    ## 输入来源
-    直接接收 fetch_chat_messages 的完整 JSON 输出。
-
-    ## 输出去向
-    返回飞书文档 URL，可通过 send_feishu_message 发送到群聊。
-
-    ## 与 create_feishu_spreadsheet 的区别
-    - 本工具：创建文档，记录原始消息流水（时间戳 + 发送者 + 内容）
-    - create_feishu_spreadsheet：创建表格，按热词分类展示链接汇总
+def create_feishu_doc_from_markdown(title: str, markdown_content: str) -> dict:
+    """创建飞书文档，将 Markdown 内容转换为飞书文档格式。
 
     Args:
-        messages_json: fetch_chat_messages 的完整 JSON 输出。
-        title: 文档标题。默认为 "Chat Summary — {日期}"。
+        title: 文档标题。
+        markdown_content: Markdown 格式的内容。
 
     Returns:
-        JSON 字符串，包含 doc_url、doc_id 和 message_count。
+        dict with doc_url and doc_id, or error.
     """
-    data = json.loads(messages_json)
-    messages = data.get("messages", data) if isinstance(data, dict) else data
-
-    if not messages:
-        return json.dumps({"error": "没有消息可以创建文档"}, ensure_ascii=False)
-
     config = get_config()
-    from datetime import datetime
-    today = datetime.now().strftime("%Y-%m-%d")
 
-    if not title:
-        title = f"Chat Summary — {today}"
-
-    start_time = messages[0].get("time", "")
-    end_time = messages[-1].get("time", "")
-
-    blocks: list[dict] = [
-        _heading1(f"Group Chat Summary — {today}"),
-        _heading2(f"Time range: {start_time} ~ {end_time}"),
-    ]
-    for m in messages:
-        ts = m.get("time", "")
-        short_time = ts.split(" ", 1)[1] if " " in ts else ts
-        sender = m.get("sender_id", "unknown")
-        text = _extract_text(m.get("content"))
-        blocks.append(_text_block(f"[{short_time}] {sender}: {text}"))
+    blocks = markdown_to_blocks(markdown_content)
+    if not blocks:
+        return {"error": "没有内容可以创建文档"}
 
     try:
         doc_id = _create_document(title)
         _append_blocks(doc_id, blocks)
         domain = config["FEISHU_DOMAIN"]
         doc_url = f"https://{domain}/docx/{doc_id}"
-        return json.dumps({
-            "doc_url": doc_url,
-            "doc_id": doc_id,
-            "message_count": len(messages),
-        }, ensure_ascii=False)
+        return {"doc_url": doc_url, "doc_id": doc_id}
     except Exception as e:
-        return json.dumps({"error": str(e)}, ensure_ascii=False)
+        return {"error": str(e)}
