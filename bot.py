@@ -23,9 +23,9 @@ from lark_oapi.api.im.v1 import (
     ReplyMessageRequestBody,
 )
 
-from agent.pipeline import run_pipeline, list_creators
+from agent.pipeline import run_pipeline, list_creators, find_prompt_file
 from agent.config import get_config
-from agent.feishu import get_sdk_client, send_chat_text
+from agent.feishu import get_sdk_client, send_card_message, update_card_message
 
 config = get_config()
 APP_ID = config["FEISHU_APP_ID"]
@@ -49,6 +49,99 @@ def _format_elapsed(seconds: float) -> str:
     """Format elapsed seconds to a readable string like '1m30s'."""
     m, s = divmod(int(seconds), 60)
     return f"{m}m{s}s" if m else f"{s}s"
+
+
+# ---------------------------------------------------------------------------
+# ProgressCard — 飞书卡片实时进度展示
+# ---------------------------------------------------------------------------
+
+
+class ProgressCard:
+    """Manages a Feishu interactive card that shows pipeline progress in real time."""
+
+    def __init__(self, chat_id: str, creator_name: str) -> None:
+        self.chat_id = chat_id
+        self.creator_name = creator_name
+        self.message_id: str | None = None
+        self.logs: list[str] = []
+
+    # ── card JSON builders ────────────────────────────────────────────────
+
+    def _build_card(
+        self,
+        title: str,
+        color: str,
+        footer_elements: list[dict] | None = None,
+    ) -> dict:
+        elements: list[dict] = []
+
+        # Log lines
+        if self.logs:
+            elements.append({
+                "tag": "markdown",
+                "content": "\n".join(self.logs),
+            })
+
+        # Divider + footer (doc link, etc.)
+        if footer_elements:
+            elements.append({"tag": "hr"})
+            elements.extend(footer_elements)
+
+        return {
+            "header": {
+                "template": color,
+                "title": {"tag": "plain_text", "content": title},
+            },
+            "elements": elements,
+        }
+
+    # ── public API ────────────────────────────────────────────────────────
+
+    def start(self) -> None:
+        """Send the initial progress card to the chat."""
+        card = self._build_card(
+            title=f"⏳ {self.creator_name} 个性化热点榜单生成中...",
+            color="blue",
+        )
+        self.message_id = send_card_message(self.chat_id, card)
+
+    def log(self, msg: str) -> None:
+        """Append a progress line and update the card."""
+        self.logs.append(f"✅ {msg}")
+        if not self.message_id:
+            return
+        card = self._build_card(
+            title=f"⏳ {self.creator_name} 个性化热点榜单生成中...",
+            color="blue",
+        )
+        update_card_message(self.message_id, card)
+
+    def finish(self, doc_url: str, elapsed: str) -> None:
+        """Update the card to a success state with the document link."""
+        card = self._build_card(
+            title=f"✅ {self.creator_name} 个性化热点榜单已完成 · {elapsed}",
+            color="green",
+            footer_elements=[{
+                "tag": "markdown",
+                "content": f"📋 查看文档: [{doc_url}]({doc_url})",
+            }],
+        )
+        if self.message_id:
+            update_card_message(self.message_id, card)
+        else:
+            send_card_message(self.chat_id, card)
+
+    def fail(self, error: str, elapsed: str) -> None:
+        """Update the card to a failure state."""
+        self.logs.append(f"❌ {error}")
+        card = self._build_card(
+            title=f"❌ {self.creator_name} 个性化热点榜单生成失败 · {elapsed}",
+            color="red",
+        )
+        if self.message_id:
+            update_card_message(self.message_id, card)
+        else:
+            send_card_message(self.chat_id, card)
 
 
 def reply_to_message(message_id: str, text: str) -> None:
@@ -102,17 +195,22 @@ def scheduled_pipeline_job() -> None:
 
 
 def _run_for_creator(creator_name: str, chat_id: str) -> None:
-    """Execute pipeline for one creator, send elapsed time when done."""
+    """Execute pipeline for one creator with a real-time progress card."""
+    card = ProgressCard(chat_id, creator_name)
+    card.start()
     start_time = time.time()
 
     try:
-        result = run_pipeline(creator_name, chat_id)
+        result = run_pipeline(creator_name, chat_id, on_progress=card.log)
         elapsed = _format_elapsed(time.time() - start_time)
-        send_chat_text(chat_id, f"{creator_name} 的个性化热点榜单已完成！共耗时 {elapsed}")
+        if result.startswith("http"):
+            card.finish(result, elapsed)
+        else:
+            card.fail(result, elapsed)
         print(f"[scheduler] Pipeline done for {creator_name}: {result[:200]}...")
     except Exception as e:
         elapsed = _format_elapsed(time.time() - start_time)
-        send_chat_text(chat_id, f"{creator_name} 的榜单生成失败（耗时 {elapsed}）: {e}")
+        card.fail(str(e), elapsed)
         print(f"[scheduler] Pipeline error for {creator_name}: {e}")
 
 
@@ -162,38 +260,75 @@ def on_message(data: P2ImMessageReceiveV1) -> None:
                 text = text.replace(mention.key, "")
             text = text.strip()
 
-        # Match: 更新XX的个性化榜单
-        match = _UPDATE_PATTERN.search(text)
-        if not match:
+        # Match: 更新XX的个性化榜单 (find all occurrences)
+        matches = _UPDATE_PATTERN.findall(text)
+        if not matches:
             return
 
-        creator_name = match.group(1).strip()
-        print(f"[msg] Request to update '{creator_name}' hotlist from chat {chat_id}")
+        # Resolve matched names to known creators
+        known = list_creators()
+        creators_to_update: list[str] = []
+
+        for raw_name in matches:
+            raw_name = raw_name.strip()
+            if find_prompt_file(raw_name):
+                creators_to_update.append(raw_name)
+            else:
+                # Check all known creators as substring (handles "飞哥和Trader" etc.)
+                for c in known:
+                    if c in raw_name:
+                        creators_to_update.append(c)
+
+        # Deduplicate while preserving order
+        creators_to_update = list(dict.fromkeys(creators_to_update))
+
+        if not creators_to_update:
+            raw = "、".join(m.strip() for m in matches)
+            available = "、".join(known) if known else "无"
+            reply_to_message(message_id, f"未找到达人「{raw}」，当前可用达人：{available}")
+            return
+
+        names_str = "、".join(creators_to_update)
+        print(f"[msg] Request to update [{names_str}] hotlist from chat {chat_id}")
 
         # Guard: reject if a pipeline is already running
         if not _pipeline_lock.acquire(blocking=False):
             reply_to_message(message_id, "当前正在生成中，请稍后再试～")
             return
 
-        reply_to_message(message_id, f"收到！正在为 {creator_name} 生成个性化热点榜单...")
-
-        # Run pipeline in a separate thread
-        def _run_pipeline_task(cname, cid, mid):
+        # Run pipeline for each creator sequentially in a separate thread
+        def _run_pipeline_task(creators, cid, mid):
             try:
-                result = run_pipeline(cname, cid)
-                print(f"[pipeline] Result: {result[:200]}...")
-            except Exception as e:
-                print(f"[pipeline] Error: {e}")
-                reply_to_message(mid, f"生成失败: {e}")
+                for cname in creators:
+                    card = ProgressCard(cid, cname)
+                    card.start()
+                    start_time = time.time()
+                    try:
+                        result = run_pipeline(cname, cid, on_progress=card.log)
+                        elapsed = _format_elapsed(time.time() - start_time)
+                        if result.startswith("http"):
+                            card.finish(result, elapsed)
+                        else:
+                            card.fail(result, elapsed)
+                        print(f"[pipeline] Result for {cname}: {result[:200]}...")
+                    except Exception as e:
+                        elapsed = _format_elapsed(time.time() - start_time)
+                        card.fail(str(e), elapsed)
+                        print(f"[pipeline] Error for {cname}: {e}")
             finally:
                 _pipeline_lock.release()
 
-        t = threading.Thread(
-            target=_run_pipeline_task,
-            args=(creator_name, chat_id, message_id),
-            daemon=True,
-        )
-        t.start()
+        try:
+            reply_to_message(message_id, f"收到！正在为 {names_str} 生成个性化热点榜单...")
+            t = threading.Thread(
+                target=_run_pipeline_task,
+                args=(creators_to_update, chat_id, message_id),
+                daemon=True,
+            )
+            t.start()
+        except Exception:
+            _pipeline_lock.release()
+            raise
 
     except Exception as e:
         import traceback

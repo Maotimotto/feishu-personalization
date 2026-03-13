@@ -12,7 +12,7 @@ _ENV_PATH = os.path.join(_BASE_DIR, ".env")
 load_dotenv(_ENV_PATH)
 
 
-def get_config() -> dict[str, str]:
+def get_config() -> dict[str, str | int | float]:
     """Get configuration from environment variables."""
     return {
         "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY") or os.getenv("LLM_API_KEY", ""),
@@ -50,8 +50,7 @@ def get_llm():
         kwargs["api_key"] = config["OPENAI_API_KEY"]
     if config["OPENAI_BASE_URL"]:
         base_url = config["OPENAI_BASE_URL"]
-        if base_url.endswith("/chat/completions"):
-            base_url = base_url.replace("/chat/completions", "")
+        base_url = base_url.removesuffix("/chat/completions")
         kwargs["base_url"] = base_url
 
     return ChatOpenAI(**kwargs)

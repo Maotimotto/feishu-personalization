@@ -111,3 +111,51 @@ def send_chat_text(chat_id: str, text: str) -> str | None:
         return response.data.message_id
     print(f"[feishu] Send failed: code={response.code} msg={response.msg}")
     return None
+
+
+def send_card_message(chat_id: str, card_content: dict) -> str | None:
+    """Send an interactive card message to a chat and return message_id."""
+    from lark_oapi.api.im.v1 import CreateMessageRequest, CreateMessageRequestBody
+
+    client = get_sdk_client()
+    body = (
+        CreateMessageRequestBody.builder()
+        .receive_id(chat_id)
+        .msg_type("interactive")
+        .content(json.dumps(card_content))
+        .build()
+    )
+    request = (
+        CreateMessageRequest.builder()
+        .receive_id_type("chat_id")
+        .request_body(body)
+        .build()
+    )
+    response = client.im.v1.message.create(request)
+    if response.success():
+        return response.data.message_id
+    print(f"[feishu] Send card failed: code={response.code} msg={response.msg}")
+    return None
+
+
+def update_card_message(message_id: str, card_content: dict) -> bool:
+    """Update an existing card message by message_id."""
+    from lark_oapi.api.im.v1 import PatchMessageRequest, PatchMessageRequestBody
+
+    client = get_sdk_client()
+    body = (
+        PatchMessageRequestBody.builder()
+        .content(json.dumps(card_content))
+        .build()
+    )
+    request = (
+        PatchMessageRequest.builder()
+        .message_id(message_id)
+        .request_body(body)
+        .build()
+    )
+    response = client.im.v1.message.patch(request)
+    if response.success():
+        return True
+    print(f"[feishu] Update card failed: code={response.code} msg={response.msg}")
+    return False

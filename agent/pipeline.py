@@ -7,7 +7,6 @@
 3b. WebSearch 深度搜索背景信息
 3c. LLM 根据背景信息优化最终榜单
 4. 将生成的 Markdown 内容创建为飞书文档
-5. 将文档链接发送到群聊
 """
 
 from __future__ import annotations
@@ -21,10 +20,11 @@ from datetime import datetime
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from typing import Callable
+
 from .config import get_config, get_llm
 from .tools.create_feishu_doc import create_feishu_doc_from_markdown
 from .tools.web_search import search_web
-from .feishu import send_chat_text
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -128,9 +128,23 @@ def _generate_search_queries(llm, template: str, today: str) -> list[dict]:
     content = response.content.strip()
 
     # Extract JSON array from response (handle markdown code blocks)
-    json_match = re.search(r'\[.*\]', content, re.DOTALL)
+    json_match = re.search(r'\[.*?\]', content, re.DOTALL)
     if json_match:
-        content = json_match.group(0)
+        try:
+            queries = json.loads(json_match.group(0))
+            if isinstance(queries, list):
+                return queries
+        except json.JSONDecodeError:
+            pass
+        # Greedy fallback: try matching the widest bracket span
+        json_match_greedy = re.search(r'\[.*\]', content, re.DOTALL)
+        if json_match_greedy:
+            try:
+                queries = json.loads(json_match_greedy.group(0))
+                if isinstance(queries, list):
+                    return queries
+            except json.JSONDecodeError:
+                pass
 
     try:
         queries = json.loads(content)
@@ -329,14 +343,17 @@ def _generate_initial_content_and_queries(
     )
     if queries_match:
         raw = queries_match.group(1).strip()
-        json_match = re.search(r"\[.*\]", raw, re.DOTALL)
-        if json_match:
-            try:
-                parsed = json.loads(json_match.group(0))
-                if isinstance(parsed, list):
-                    queries = parsed
-            except json.JSONDecodeError:
-                pass
+        # Try non-greedy first, then greedy as fallback
+        for pattern in (r"\[.*?\]", r"\[.*\]"):
+            json_match = re.search(pattern, raw, re.DOTALL)
+            if json_match:
+                try:
+                    parsed = json.loads(json_match.group(0))
+                    if isinstance(parsed, list):
+                        queries = parsed
+                        break
+                except json.JSONDecodeError:
+                    continue
 
     return initial_content, queries
 
@@ -407,7 +424,11 @@ def _refine_content(
 
 # ─── Pipeline execution ─────────────────────────────────────────────────────
 
-def run_pipeline(creator_name: str, chat_id: str) -> str:
+def run_pipeline(
+    creator_name: str,
+    chat_id: str,
+    on_progress: Callable[[str], None] | None = None,
+) -> str:
     """Execute the personalized hot topics pipeline for a creator.
 
     Fixed pipeline steps:
@@ -416,24 +437,30 @@ def run_pipeline(creator_name: str, chat_id: str) -> str:
         3. Execute searches and collect results
         4. LLM generates final content from search results
         5. Create Feishu document
-        6. Send document link to chat
 
     Args:
         creator_name: Name of the creator (e.g., "Trader", "飞哥").
         chat_id: Feishu chat ID to send the result to.
+        on_progress: Optional callback invoked with a progress message string
+            at each pipeline step.
 
     Returns:
         The Feishu document URL, or an error message.
     """
+    def _progress(msg: str) -> None:
+        print(f"[pipeline] {msg}")
+        if on_progress:
+            on_progress(msg)
+
     # 1. Load creator prompt
     prompt_file = find_prompt_file(creator_name)
     if not prompt_file:
         error = f"未找到达人 '{creator_name}' 的提示词文件"
-        print(f"[pipeline] {error}")
+        _progress(error)
         return error
 
     template = load_prompt_template(prompt_file)
-    print(f"[pipeline] Loaded prompt for '{creator_name}' from {os.path.basename(prompt_file)}")
+    _progress("加载提示词完成")
 
     today = datetime.now().strftime("%Y年%m月%d日")
     llm = get_llm()
@@ -443,64 +470,62 @@ def run_pipeline(creator_name: str, chat_id: str) -> str:
 
     if source_cfg:
         # ── 使用爬虫抓取数据 ──
-        print("[pipeline] Step 1: Collecting scraper data...")
+        _progress("收集新闻素材...")
         news_material = _collect_scraper_data(source_cfg)
     else:
         # ── 默认走 Web Search 流程 ──
-        print("[pipeline] Step 1: Generating search queries...")
+        _progress("生成搜索关键词...")
         queries = _generate_search_queries(llm, template, today)
-        print(f"[pipeline] Generated {len(queries)} search queries")
+        _progress(f"生成 {len(queries)} 个搜索关键词")
 
-        print("[pipeline] Step 2: Executing searches...")
+        _progress("执行搜索...")
         news_material = _execute_searches(queries)
 
     if not news_material.strip():
         return "未获取到任何新闻素材"
 
+    _progress("收集新闻素材完成")
+
     # 3a. LLM generates initial content + search queries
-    print("[pipeline] Step 3a: Generating initial content and search queries...")
+    _progress("生成初版内容...")
     initial_content, search_queries = _generate_initial_content_and_queries(
         llm, template, today, news_material
     )
-    print(f"[pipeline] Initial content: {len(initial_content)} chars, "
-          f"search queries: {len(search_queries)}")
+    _progress(f"生成初版内容 ({len(initial_content)}字)")
 
     # 3b. WebSearch deep background search
     if search_queries:
-        print(f"[pipeline] Step 3b: Searching background info ({len(search_queries)} queries)...")
+        _progress(f"深度搜索 ({len(search_queries)}个查询)...")
         background_info = _search_background(search_queries)
+        _progress(f"深度搜索完成 ({len(search_queries)}个查询)")
     else:
-        print("[pipeline] Step 3b: No search queries, skipping background search")
+        _progress("无需深度搜索")
         background_info = ""
 
     # 3c. LLM refines content with background info
     if background_info.strip():
-        print("[pipeline] Step 3c: Refining content with background info...")
+        _progress("优化最终内容...")
         final_content = _refine_content(llm, template, initial_content, background_info)
     else:
-        print("[pipeline] Step 3c: No background info, using initial content as final")
+        _progress("无背景资料，使用初版内容")
         final_content = initial_content
 
     if not final_content:
         return "Pipeline 未生成内容"
 
-    print(f"[pipeline] Generated {len(final_content)} chars of content")
+    _progress(f"优化最终内容 ({len(final_content)}字)")
 
     # 4. Create Feishu document
+    _progress("创建飞书文档...")
     doc_title = f"☀️ {creator_name} 早间热点速览 · {datetime.now().strftime('%Y-%m-%d')}"
     result = create_feishu_doc_from_markdown(doc_title, final_content)
 
     if "error" in result:
         error_msg = f"创建飞书文档失败: {result['error']}"
-        print(f"[pipeline] {error_msg}")
+        _progress(error_msg)
         return error_msg
 
     doc_url = result["doc_url"]
-    print(f"[pipeline] Document created: {doc_url}")
-
-    # 5. Send document link to chat
-    send_text = f"📋 {creator_name} 的个性化热点榜单已生成：\n{doc_url}"
-    send_chat_text(chat_id, send_text)
-    print(f"[pipeline] Sent to chat {chat_id}")
+    _progress("创建飞书文档完成")
 
     return doc_url

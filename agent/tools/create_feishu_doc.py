@@ -25,7 +25,6 @@ def _text_run(content: str, bold: bool = False, link: str = "") -> dict:
     if link:
         style["link"] = {"url": link}
     element: dict = {
-        "text_element_type": 1,
         "text_run": {"content": content},
     }
     if style:
@@ -37,7 +36,7 @@ def _heading(level: int, text: str) -> dict:
     """Create a heading block (level 1-9 → block_type 3-11)."""
     block_type = 2 + level  # heading1=3, heading2=4, heading3=5, ...
     key = f"heading{level}"
-    return {"block_type": block_type, key: {"elements": [_text_run(text)]}}
+    return {"block_type": block_type, key: {"elements": _parse_inline(text)}}
 
 
 def _text_block(elements: list[dict]) -> dict:

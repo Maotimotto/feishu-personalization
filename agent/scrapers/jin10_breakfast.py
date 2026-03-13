@@ -19,7 +19,8 @@ def get_today_breakfast_url() -> str | None:
         文章 URL（如 https://xnews.jin10.com/details/212704），
         未找到则返回 None。
     """
-    today_str = datetime.now().strftime("%Y年%-m月%-d日")
+    today = datetime.now()
+    today_str = f"{today.year}年{today.month}月{today.day}日"
     target_title = f"金十数据全球财经早餐 | {today_str}"
 
     resp = httpx.get(TOPIC_URL, timeout=15, follow_redirects=True)

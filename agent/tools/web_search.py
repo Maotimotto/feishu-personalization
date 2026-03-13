@@ -143,29 +143,31 @@ def _search_exa(
 
         result = exa.search(query, **kwargs)
 
-        # 返回结构化 JSON
-        structured: dict = {"query": query, "results": []}
-        for item in result.results:
+        # Format as human-readable text (consistent with Tavily output)
+        lines = [f"搜索结果（{query}）：", ""]
+        for i, item in enumerate(result.results, 1):
             title = getattr(item, "title", "无标题")
             url = getattr(item, "url", "")
             published_date = getattr(item, "published_date", "")
             summary = getattr(item, "summary", "")
             text = getattr(item, "text", "")
             highlights = getattr(item, "highlights", [])
-            highlight_text = highlights[0] if highlights else ""
 
-            structured["results"].append({
-                "title": title,
-                "url": url,
-                "published_date": published_date,
-                "summary": summary,
-                "text": text,
-                "highlight": highlight_text,
-            })
+            lines.append(f"{i}. **{title}**")
+            lines.append(f"   链接：{url}")
+            if published_date:
+                lines.append(f"   发布时间：{published_date}")
+            if summary:
+                lines.append(f"   摘要：{summary[:300]}")
+            elif text:
+                lines.append(f"   内容：{text[:300]}")
+            elif highlights:
+                lines.append(f"   要点：{highlights[0][:300]}")
+            lines.append("")
 
         if not result.results:
-            structured["results"] = []
+            lines.append("未找到相关结果，建议换用更短或更宽泛的关键词重试。")
 
-        return json.dumps(structured, ensure_ascii=False)
+        return "\n".join(lines)
     except Exception as e:
-        return json.dumps({"query": query, "error": str(e), "results": []}, ensure_ascii=False)
+        return f"Exa 搜索出错：{e}"
